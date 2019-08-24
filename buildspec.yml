@@ -1,0 +1,19 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: openjdk8
+
+    
+    
+  build:
+    commands:
+      - echo Maven Build ...
+      - java -version
+      - mvn clean package
+
+       
+artifacts:
+     files:
+      - target/spring-boot.jar
