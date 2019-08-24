@@ -5,8 +5,7 @@ phases:
     runtime-versions:
       java: openjdk8
 
-    
-    
+     
   build:
     commands:
       - echo Maven Build ...
