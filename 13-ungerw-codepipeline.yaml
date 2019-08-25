@@ -14,7 +14,7 @@ Parameters:
     GitHubRepository:
         Description: Enter the repository name that should be monitored for changes
         Type: String
-        Default: ungerw-spring-boot-docker
+        Default: codepipeline-ecs
 
     GitHubBranch:
         Description: Enter the GitHub branch to monitored
@@ -34,29 +34,35 @@ Parameters:
     KMSKeyId:
         Type: String
         Description: KMS Key ID CodePipeline artifacts on S3 (ARN)
-        # enter your kms key in here
-        Default: arn:aws:kms:us-east-1:016973021151:key/58b8e197-2e58-4ce3-9ee6-15ca18378410
+        Default: arn:aws:kms:eu-central-1:016973021151:key/3f96cd76-77fa-484c-8a9a-2c882e93d5b3
         
         
     ArtifactStoreS3Bucket:
         Type: String
         Description: Name of the S3 bucket to store CodePipeline artificats.
-        Default: codepipeline-nv-wolfgang
+        Default: codepipeline-eu-central-1-343319948364
         
     NetworkStack:
         Type: String
         Description: ECS network stack name
-        Default: ecsNV
+        Default: ecs-cluster
         
     Service:
         Type: String
         Description: Ref to the service where the builded artifact would be deployed
-        Default: ecsNV-Service-105ZZOF8XXHV4-Service-1K10PMKX97URN
+        Default: SpringBoot
 
     Cluster:
         Type: String
         Description: Name of the cluster
-        Default: ecs-example
+        Default: ecs-cluster-ECSCluster-CLUWD3E5U6LG
+
+    CodePipelineRoleARN:
+        Type: String
+        Description: ARN  of CodePipeline Service Role
+        Default: arn:aws:iam::016973021151:role/AWS-CodePipeline-Service
+
+
 ######################################################################################
 #  Resources
 ######################################################################################    
@@ -190,90 +196,7 @@ Resources:
                              
                       Resource:
                         - '*'                          
-                          
-
-    CodePipelineRole:
-        Type: AWS::IAM::Role
-        Properties:
-            RoleName: !Sub ${StackPrefix}-pipeline.${AWS::Region}.CodePipeline
-            Path: /services/
-            AssumeRolePolicyDocument:
-                Version: '2012-10-17'
-                Statement:
-                  - Action:
-                      - sts:AssumeRole
-                    Effect: Allow
-                    Principal:
-                      Service: codepipeline.amazonaws.com
-            Policies:
-              - 
-                PolicyName: CodePipelineAccessPolicy
-                PolicyDocument:
-                  Version: '2012-10-17'
-                  Statement:
-                    - 
-                      Effect: Allow
-                      Action:
-                        - cloudformation:*
-                  
-                      Resource:
-                        - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*'
-                    - 
-                      Effect: Allow
-                      Action:
-                        - codebuild:StartBuild
-                        - codebuild:BatchGetBuilds
-                      Resource:
-                        - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/*'
-                    - 
-                      Effect: Allow
-                      Action:
-                        - codecommit:GetBranch
-                        - codecommit:GetCommit
-                        - codecommit:UploadArchive
-                        - codecommit:GetUploadArchiveStatus
-                        - codecommit:CancelUploadArchive
-                        - iam:PassRole
-                        - lambda:ListFunctions
-                        - sts:AssumeRole
-                        - "ecs:*"
-                      Resource:
-                        - '*'
-
-              - 
-                PolicyName: ArtifactStorePolicy
-                PolicyDocument:
-                  Version: '2012-10-17'
-                  Statement:
-                    - 
-                      Effect: Allow
-                      Action:
-                        - s3:PutObject
-                        - s3:GetObject
-                        - s3:GetObjectVersion
-                        - s3:ListBucket
-                      Resource:
-                        - !Sub arn:aws:s3:::${ArtifactStoreS3Bucket}
-                        - !Sub arn:aws:s3:::${ArtifactStoreS3Bucket}/*
-                    - 
-                      Effect: Allow
-                      Action:
-                        - s3:GetBucketTagging
-                      Resource:
-                        - !Sub 'arn:aws:s3:::*'
-                    - 
-                      Effect: Allow
-                      Action:
-                        - "kms:Encrypt"
-                        - "kms:Decrypt"
-                        - "kms:ReEncrypt*"
-                        - "kms:GenerateDataKey*"
-                        - "kms:DescribeKey"
-                      Resource:
-                        - '*'
-                        
-
-                       
+                                             
 
     BuildJava:
         Type: AWS::CodeBuild::Project
@@ -283,20 +206,15 @@ Resources:
             Name: !Sub ${StackPrefix}-${GitHubRepository}-Java
             Description: Build ECS cluster
             ServiceRole: !GetAtt 'CodeBuildRole.Arn'
-            # IMPORTANT! Define KMS CMK for Cross Account Access
-            #EncryptionKey: !Ref KMSKeyId
             Source:
                 Type: CODEPIPELINE
                 BuildSpec: buildspec.yml
             Artifacts:
                 Type: CODEPIPELINE
-                #Name: build.zip
-                #Packaging: ZIP
             Environment:
                 Type: LINUX_CONTAINER
                 ComputeType: BUILD_GENERAL1_SMALL
-                #Image: aws/codebuild/java:openjdk-8
-                Image: aws/codebuild/docker:17.09.0
+                Image: aws/codebuild/java:openjdk-8
                 EnvironmentVariables:
                 - Name: 'PIPELINE_STACK'
                   Value: !Ref 'AWS::StackName'
@@ -328,9 +246,9 @@ Resources:
                     Id: !Ref KMSKeyId
                     Type: KMS
             Name: !Sub ${StackPrefix}-${GitHubRepository}
-            RoleArn: !GetAtt 'CodePipelineRole.Arn'
-            Stages:
+            RoleArn: !Ref CodePipelineRoleARN
             
+            Stages: 
                 - Name: Source
                   Actions:
                     - Name: GitHub
@@ -342,7 +260,6 @@ Resources:
                       OutputArtifacts:
                          -  Name: Source
                       Configuration:
-                        #Owner: 
                         Owner: !Ref GitHubUser
                         Repo: !Ref 'GitHubRepository'
                         Branch: !Ref 'GitHubBranch'
