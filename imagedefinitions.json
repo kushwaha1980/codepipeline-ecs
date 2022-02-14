@@ -1,6 +1,6 @@
 [
     {
         "name": "SpringBoot",
-        "imageUri": "016973021151.dkr.ecr.eu-central-1.amazonaws.com/ungerw/codebuild:springboot"
+        "imageUri": "834698369461.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest"
     }
 ]
